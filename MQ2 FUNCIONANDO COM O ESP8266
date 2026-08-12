@@ -1,0 +1,167 @@
+from machine import Pin, I2C
+import time
+import network
+import socket
+from ads1015 import ADS1015
+
+
+# ======================
+# WIFI
+# ======================
+
+ssid = "FestaJuninaBarao"
+senha = "@Barao2026"
+
+wifi = network.WLAN(network.STA_IF)
+wifi.active(True)
+
+wifi.connect(ssid, senha)
+
+print("Conectando Wi-Fi...")
+
+while not wifi.isconnected():
+    time.sleep(1)
+
+ip = wifi.ifconfig()[0]
+
+print("Wi-Fi conectado!")
+print("IP:", ip)
+
+
+# ======================
+# ADS1015
+# ======================
+
+i2c = I2C(
+    scl=Pin(5),
+    sda=Pin(4)
+)
+
+ads = ADS1015(i2c)
+
+
+# ======================
+# SERVIDOR WEB
+# ======================
+
+servidor = socket.socket()
+servidor.bind(("0.0.0.0", 80))
+servidor.listen(5)
+
+print("Servidor iniciado!")
+print("Abra:", ip)
+
+
+while True:
+
+    conexao, endereco = servidor.accept()
+
+    requisicao = conexao.recv(1024)
+
+    requisicao = str(requisicao)
+
+
+    # ======================
+    # ENVIA VALOR DO SENSOR
+    # ======================
+
+    if "/valor" in requisicao:
+
+        valor = ads.read(0)
+
+
+        if valor > 500:
+            status = "⚠️ FUMAÇA/GÁS DETECTADO"
+        else:
+            status = "✅ Ambiente seguro"
+
+
+        resposta = f"{valor}|{status}"
+
+
+        conexao.send("HTTP/1.1 200 OK\r\n")
+        conexao.send("Access-Control-Allow-Origin: *\r\n")
+        conexao.send("Content-Type: text/plain\r\n\r\n")
+        conexao.send(resposta)
+
+
+    # ======================
+    # PÁGINA PRINCIPAL
+    # ======================
+
+    else:
+
+
+        html = """
+        <html>
+
+        <head>
+
+        <meta charset="UTF-8">
+
+        <title>Segurança Escolar</title>
+
+
+        <script>
+
+        function atualizar(){
+
+            fetch('/valor')
+
+            .then(resposta => resposta.text())
+
+            .then(dados => {
+
+                let partes = dados.split("|");
+
+                document.getElementById("nivel").innerHTML = partes[0];
+
+                document.getElementById("status").innerHTML = partes[1];
+
+            });
+
+        }
+
+
+        setInterval(atualizar,1000);
+
+        atualizar();
+
+
+        </script>
+
+
+        </head>
+
+
+        <body>
+
+
+        <h1>Monitor MQ-2</h1>
+
+
+        <h2>Nível:</h2>
+
+        <h1 id="nivel">
+        Carregando...
+        </h1>
+
+
+        <h2 id="status">
+        </h2>
+
+
+        </body>
+
+
+        </html>
+        """
+
+
+        conexao.send("HTTP/1.1 200 OK\r\n")
+        conexao.send("Access-Control-Allow-Origin: *\r\n")
+        conexao.send("Content-Type: text/html\r\n\r\n")
+        conexao.send(html)
+
+
+    conexao.close()
