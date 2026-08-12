@@ -1,0 +1,244 @@
+from machine import Pin, I2C
+import time
+import network
+import socket
+from ads1015 import ADS1015
+
+
+# ======================
+# WIFI
+# ======================
+
+ssid = "FestaJuninaBarao"
+senha = "@Barao2026"
+
+wifi = network.WLAN(network.STA_IF)
+wifi.active(True)
+
+print("Conectando Wi-Fi...")
+
+wifi.connect(ssid, senha)
+
+while not wifi.isconnected():
+    time.sleep(1)
+    print(".")
+
+ip = wifi.ifconfig()[0]
+
+print()
+print("============================")
+print(" WIFI CONECTADO!")
+print("IP:", ip)
+print("============================")
+
+
+# ======================
+# SENSOR PIR
+# ======================
+
+sensor_pir = Pin(14, Pin.IN)
+
+print("Inicializando PIR...")
+
+time.sleep(5)
+
+print("PIR pronto!")
+
+
+# ======================
+# ADS1015
+# ======================
+
+i2c = I2C(
+    scl=Pin(5),
+    sda=Pin(4)
+)
+
+ads = ADS1015(i2c)
+
+print("ADS1015 configurado!")
+
+
+# ======================
+# SERVIDOR WEB
+# ======================
+
+servidor = socket.socket()
+
+servidor.setsockopt(
+    socket.SOL_SOCKET,
+    socket.SO_REUSEADDR,
+    1
+)
+
+servidor.bind(("0.0.0.0", 80))
+
+servidor.listen(5)
+
+print("============================")
+print(" SERVIDOR ONLINE")
+print("IP:", ip)
+print("============================")
+
+
+# ======================
+# LOOP PRINCIPAL
+# ======================
+
+while True:
+
+    conexao, endereco = servidor.accept()
+
+    try:
+
+        requisicao = conexao.recv(1024)
+
+        requisicao = str(requisicao)
+
+
+        # ======================
+        # PIR
+        # ======================
+
+        if "/status" in requisicao:
+
+            estado = sensor_pir.value()
+
+            resposta = '{"pir":' + str(estado) + '}'
+
+
+            conexao.send(
+                "HTTP/1.1 200 OK\r\n"
+            )
+
+            conexao.send(
+                "Access-Control-Allow-Origin: *\r\n"
+            )
+
+            conexao.send(
+                "Content-Type: application/json\r\n"
+            )
+
+            conexao.send(
+                "Cache-Control: no-cache\r\n"
+            )
+
+            conexao.send(
+                "\r\n"
+            )
+
+            conexao.send(resposta)
+
+
+        # ======================
+        # MQ-2
+        # ======================
+
+        elif "/valor" in requisicao:
+
+            valor = ads.read(0)
+
+
+            if valor > 500:
+
+                status = "⚠️ FUMAÇA/GÁS DETECTADO"
+
+            else:
+
+                status = "✅ Ambiente seguro"
+
+
+            resposta = str(valor) + "|" + status
+
+
+            conexao.send(
+                "HTTP/1.1 200 OK\r\n"
+            )
+
+            conexao.send(
+                "Access-Control-Allow-Origin: *\r\n"
+            )
+
+            conexao.send(
+                "Content-Type: text/plain\r\n"
+            )
+
+            conexao.send(
+                "Cache-Control: no-cache\r\n"
+            )
+
+            conexao.send(
+                "\r\n"
+            )
+
+            conexao.send(resposta)
+
+
+        # ======================
+        # OUTRA REQUISIÇÃO
+        # ======================
+
+        else:
+
+            estado = sensor_pir.value()
+
+            valor = ads.read(0)
+
+
+            conexao.send(
+                "HTTP/1.1 200 OK\r\n"
+            )
+
+            conexao.send(
+                "Access-Control-Allow-Origin: *\r\n"
+            )
+
+            conexao.send(
+                "Content-Type: text/html\r\n"
+            )
+
+            conexao.send(
+                "\r\n"
+            )
+
+
+            html = """
+            <!DOCTYPE html>
+
+            <html>
+
+            <head>
+
+            <meta charset="UTF-8">
+
+            <title>Segurança Escolar</title>
+
+            </head>
+
+            <body>
+
+            <h1>Segurança Escolar</h1>
+
+            <h2>ESP8266 Online</h2>
+
+            <p>PIR: %s</p>
+
+            <p>MQ-2: %s</p>
+
+            </body>
+
+            </html>
+            """ % (estado, valor)
+
+
+            conexao.send(html)
+
+
+    except Exception as erro:
+
+        print("Erro:", erro)
+
+
+    finally:
+
+        conexao.close()
