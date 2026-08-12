@@ -1,0 +1,33 @@
+from machine import I2C
+import time
+
+
+class ADS1015:
+
+    def __init__(self, i2c, address=0x48):
+        self.i2c = i2c
+        self.address = address
+    def read(self, channel=0):
+
+        config = [
+            0xC1 | (channel << 4),
+            0x83
+        ]
+
+        self.i2c.writeto_mem(
+            self.address,
+            0x01,
+            bytes(config)
+        )
+
+        time.sleep_ms(10)
+
+        data = self.i2c.readfrom_mem(
+            self.address,
+            0x00,
+            2
+        )
+
+        valor = (data[0] << 8) | data[1]
+        valor = valor >> 4
+        return valor
