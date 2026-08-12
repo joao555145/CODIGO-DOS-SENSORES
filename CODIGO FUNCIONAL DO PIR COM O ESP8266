@@ -1,0 +1,92 @@
+from machine import Pin
+import network
+import socket
+import time
+
+# =========================
+# WIFI
+# =========================
+
+ssid = "FestaJuninaBarao"
+senha = "@Barao2026"
+
+wifi = network.WLAN(network.STA_IF)
+wifi.active(True)
+
+print("Conectando ao Wi-Fi...")
+
+wifi.connect(ssid, senha)
+
+while not wifi.isconnected():
+    time.sleep(0.5)
+    print(".")
+
+print()
+print("============================")
+print(" WIFI CONECTADO!")
+print("IP:", wifi.ifconfig()[0])
+print("============================")
+
+
+# =========================
+# SENSOR PIR
+# =========================
+
+sensor_pir = Pin(14, Pin.IN)
+
+print("Inicializando sensor...")
+time.sleep(5)
+
+print("Sensor pronto!")
+
+
+# =========================
+# SERVIDOR
+# =========================
+
+servidor = socket.socket()
+servidor.bind(("0.0.0.0", 80))
+servidor.listen(1)
+
+print("============================")
+print(" SERVIDOR ONLINE")
+print("IP:", wifi.ifconfig()[0])
+print("============================")
+
+
+# =========================
+# LOOP
+# =========================
+
+while True:
+
+    conexao, endereco = servidor.accept()
+
+    requisicao = conexao.recv(1024)
+
+    estado = sensor_pir.value()
+
+    if "/status" in str(requisicao):
+
+        resposta = '{"pir":' + str(estado) + '}'
+
+        conexao.send("HTTP/1.1 200 OK\r\n")
+        conexao.send("Content-Type: application/json\r\n")
+        conexao.send("Access-Control-Allow-Origin: *\r\n")
+        conexao.send("\r\n")
+        conexao.send(resposta)
+
+    else:
+
+        conexao.send("HTTP/1.1 200 OK\r\n")
+        conexao.send("Content-Type: text/html\r\n")
+        conexao.send("\r\n")
+
+        if estado == 1:
+            conexao.send("<h1>🚨 MOVIMENTO DETECTADO</h1>")
+        else:
+            conexao.send("<h1>✅ SEM MOVIMENTO</h1>")
+
+    conexao.close()
+
+
