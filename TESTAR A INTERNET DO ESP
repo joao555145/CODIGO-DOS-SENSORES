@@ -1,0 +1,37 @@
+import network
+import time
+
+# COLOQUE O NOME E SENHA DO SEU WIFI
+ssid = "NOME_DO_WIFI"
+senha = "SENHA_DO_WIFI"
+
+wifi = network.WLAN(network.STA_IF)
+wifi.active(True)
+
+print("Conectando no Wi-Fi...")
+
+wifi.connect(ssid, senha)
+
+while not wifi.isconnected():
+    print(".")
+    time.sleep(1)
+
+print("\nWi-Fi conectado!")
+print("Configuração da rede:")
+print(wifi.ifconfig())
+
+
+A saída esperada será:
+
+Conectando no Wi-Fi...
+.
+.
+.
+Wi-Fi conectado!
+
+Configuração da rede:
+('192.168.1.50', '255.255.255.0', '192.168.1.1', '8.8.8.8')
+
+O endereço que importa é:
+
+192.168.1.50
