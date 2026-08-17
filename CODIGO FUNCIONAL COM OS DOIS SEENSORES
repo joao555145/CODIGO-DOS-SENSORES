@@ -139,7 +139,7 @@ while True:
             valor = ads.read(0)
 
 
-            if valor > 500:
+            if valor > 120:
 
                 status = "⚠️ FUMAÇA/GÁS DETECTADO"
 
