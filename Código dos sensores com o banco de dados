@@ -1,0 +1,120 @@
+from machine import Pin, I2C
+import time
+import network
+import urequests
+from ads1015 import ADS1015
+
+
+# ======================
+# WIFI
+# ======================
+
+ssid = "N tenho net"
+senha = "Falcon400_"
+
+wifi = network.WLAN(network.STA_IF)
+wifi.active(True)
+
+print("Conectando Wi-Fi...")
+
+wifi.connect(ssid, senha)
+
+while not wifi.isconnected():
+    time.sleep(1)
+    print(".")
+
+ip = wifi.ifconfig()[0]
+
+print()
+print("============================")
+print(" WIFI CONECTADO!")
+print("IP:", ip)
+print("============================")
+
+
+# ======================
+# API
+# ======================
+
+API_URL = "http://10.237.216.158:3000/esp/dados"
+
+
+# ======================
+# SENSOR PIR
+# ======================
+
+sensor_pir = Pin(14, Pin.IN)
+
+print("Inicializando PIR...")
+
+time.sleep(5)
+
+print("PIR pronto!")
+
+
+# ======================
+# ADS1015
+# ======================
+
+i2c = I2C(
+    scl=Pin(5),
+    sda=Pin(4)
+)
+
+ads = ADS1015(i2c)
+
+print("ADS1015 configurado!")
+
+
+# ======================
+# ENVIO PARA API
+# ======================
+
+def enviar_dados():
+
+    pir = sensor_pir.value()
+    mq2 = ads.read(0)
+
+    dados = {
+        "pir": pir,
+        "mq2": mq2
+    }
+
+    print()
+    print("============================")
+    print("Enviando dados...")
+    print("PIR:", pir)
+    print("MQ-2:", mq2)
+
+    try:
+
+        resposta = urequests.post(
+            API_URL,
+            json=dados
+        )
+
+        print("Status API:", resposta.status_code)
+        print("Resposta:", resposta.text)
+
+        resposta.close()
+
+    except Exception as erro:
+
+        print("Erro ao enviar:", erro)
+
+
+# ======================
+# LOOP PRINCIPAL
+# ======================
+
+print()
+print("============================")
+print(" MONITORAMENTO ONLINE")
+print("============================")
+
+while True:
+
+    enviar_dados()
+
+    time.sleep(5)
+
