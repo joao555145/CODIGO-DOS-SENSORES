@@ -9,8 +9,8 @@ from ads1015 import ADS1015
 # WIFI
 # ======================
 
-ssid = "N tenho net"
-senha = "Falcon400_"
+ssid = "FestaJuninaBarao"
+senha = "@Barao2026"
 
 wifi = network.WLAN(network.STA_IF)
 wifi.active(True)
@@ -36,8 +36,7 @@ print("============================")
 # API
 # ======================
 
-API_URL = "http://10.237.216.158:3000/esp/dados"
-
+API_URL = "http://192.168.0.106:3000/esp/dados"
 
 # ======================
 # SENSOR PIR
